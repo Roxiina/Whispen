@@ -101,26 +101,26 @@ class FileHandler:
             mime = magic.Magic(mime=True)
             file_type = mime.from_buffer(content[:2048])  # Lire les premiers octets
             
+            logger.info(f"📄 Detected MIME type: {file_type} for {filename}")
+            
             # Types MIME audio acceptés
             accepted_mimes = [
-                "audio/mpeg",      # MP3
-                "audio/wav",       # WAV
-                "audio/x-wav",     # WAV alternative
-                "audio/mp4",       # M4A
-                "audio/x-m4a",     # M4A alternative
-                "audio/flac",      # FLAC
-                "audio/ogg",       # OGG
-                "audio/webm",      # WEBM
+                "audio/",          # Tous les types audio
                 "video/webm",      # WEBM peut être détecté comme vidéo
+                "application/octet-stream",  # Format générique
             ]
             
-            if not any(accepted_mime in file_type for accepted_mime in accepted_mimes):
-                logger.warning(f"⚠️ Suspicious MIME type: {file_type} for {filename}")
+            # Vérifier si c'est un type audio ou accepté
+            is_valid_mime = any(accepted_mime in file_type for accepted_mime in accepted_mimes)
+            
+            if not is_valid_mime:
+                logger.warning(f"⚠️ Unusual MIME type: {file_type} for {filename}")
                 # On permet quand même si l'extension est correcte (flexibilité)
+                logger.info(f"✅ File accepted based on extension: {file_extension}")
         
         except Exception as e:
             logger.warning(f"⚠️ MIME type check failed: {e}")
-            # Continue si la détection MIME échoue
+            # Continue si la détection MIME échoue (on se fie à l'extension)
     
     async def delete_file(self, file_path: str) -> bool:
         """

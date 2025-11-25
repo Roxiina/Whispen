@@ -10,6 +10,7 @@ azure-identity==1.15.0
 # Audio Processing
 pydub==0.25.1
 python-magic-bin==0.4.14  # For file type detection on Windows
+faster-whisper==1.1.0  # Local Whisper inference (optimized)
 
 # Environment Variables
 python-dotenv==1.0.0

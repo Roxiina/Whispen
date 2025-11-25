@@ -1,9 +1,9 @@
 """
 Service Azure OpenAI pour transcription et résumé
-Gère les appels à Whisper et GPT-4
+Gère les appels à Whisper (local ou OpenAI) et GPT-4 (Azure)
 """
 
-from openai import AzureOpenAI
+from openai import AzureOpenAI, OpenAI
 from app.config import settings
 import logging
 import time
@@ -11,21 +11,50 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+# Import conditionnel de faster-whisper
+try:
+    from faster_whisper import WhisperModel
+    FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    FASTER_WHISPER_AVAILABLE = False
+    logger.warning("⚠️ faster-whisper not installed, local transcription unavailable")
+
 
 class AzureOpenAIService:
-    """Service pour interagir avec Azure OpenAI"""
+    """Service pour interagir avec Azure OpenAI et Whisper local"""
     
     def __init__(self):
-        """Initialise le client Azure OpenAI"""
+        """Initialise les clients Azure OpenAI, OpenAI et Whisper local"""
         try:
-            self.client = AzureOpenAI(
+            # Client Azure OpenAI pour GPT-4 (résumé)
+            self.azure_client = AzureOpenAI(
                 api_key=settings.AZURE_OPENAI_API_KEY,
                 api_version=settings.AZURE_OPENAI_API_VERSION,
                 azure_endpoint=settings.AZURE_OPENAI_ENDPOINT
             )
             logger.info("✅ Azure OpenAI client initialized successfully")
+            
+            # Client OpenAI standard pour Whisper (transcription)
+            if settings.USE_OPENAI_WHISPER:
+                self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                logger.info("✅ OpenAI client initialized for Whisper")
+            else:
+                self.openai_client = None
+            
+            # Modèle Whisper local avec faster-whisper
+            if settings.USE_LOCAL_WHISPER and FASTER_WHISPER_AVAILABLE:
+                logger.info(f"🔄 Loading Whisper model '{settings.WHISPER_MODEL_SIZE}'...")
+                self.whisper_model = WhisperModel(
+                    settings.WHISPER_MODEL_SIZE,
+                    device="cpu",  # Utilise CPU (changez en "cuda" si GPU disponible)
+                    compute_type="int8"  # Optimisation pour CPU
+                )
+                logger.info("✅ Local Whisper model loaded successfully")
+            else:
+                self.whisper_model = None
+                
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Azure OpenAI client: {e}")
+            logger.error(f"❌ Failed to initialize clients: {e}")
             raise
     
     async def transcribe_audio(
@@ -34,7 +63,7 @@ class AzureOpenAIService:
         language: Optional[str] = "fr"
     ) -> Dict[str, Any]:
         """
-        Transcrit un fichier audio avec Azure OpenAI Whisper
+        Transcrit un fichier audio avec Whisper (local ou OpenAI)
         
         Args:
             audio_file_path: Chemin vers le fichier audio
@@ -48,28 +77,58 @@ class AzureOpenAIService:
         try:
             logger.info(f"🎤 Starting transcription for: {audio_file_path}")
             
-            with open(audio_file_path, "rb") as audio_file:
-                # Appel à l'API Whisper d'Azure OpenAI
-                transcript = self.client.audio.transcriptions.create(
-                    model=settings.AZURE_WHISPER_DEPLOYMENT_NAME,
-                    file=audio_file,
+            # Option 1: Whisper local avec faster-whisper
+            if settings.USE_LOCAL_WHISPER and self.whisper_model:
+                segments, info = self.whisper_model.transcribe(
+                    audio_file_path,
                     language=language,
-                    response_format="verbose_json"  # Pour obtenir plus de métadonnées
+                    beam_size=5,
+                    vad_filter=True  # Voice Activity Detection pour meilleure qualité
                 )
+                
+                # Reconstruction du texte complet
+                text = " ".join([segment.text for segment in segments])
+                duration = info.duration
+                detected_language = info.language
+                
+                processing_time = time.time() - start_time
+                
+                result = {
+                    "text": text,
+                    "language": detected_language,
+                    "duration": duration,
+                    "processing_time": processing_time,
+                    "word_count": len(text.split())
+                }
+                
+                logger.info(f"✅ Local transcription completed in {processing_time:.2f}s - {result['word_count']} words")
+                return result
             
-            processing_time = time.time() - start_time
+            # Option 2: OpenAI API Whisper
+            elif settings.USE_OPENAI_WHISPER and self.openai_client:
+                with open(audio_file_path, "rb") as audio_file:
+                    transcript = self.openai_client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language=language,
+                        response_format="verbose_json"
+                    )
+                
+                processing_time = time.time() - start_time
+                
+                result = {
+                    "text": transcript.text,
+                    "language": transcript.language if hasattr(transcript, 'language') else language,
+                    "duration": transcript.duration if hasattr(transcript, 'duration') else None,
+                    "processing_time": processing_time,
+                    "word_count": len(transcript.text.split())
+                }
+                
+                logger.info(f"✅ OpenAI transcription completed in {processing_time:.2f}s - {result['word_count']} words")
+                return result
             
-            # Extraction des données
-            result = {
-                "text": transcript.text,
-                "language": transcript.language if hasattr(transcript, 'language') else language,
-                "duration": transcript.duration if hasattr(transcript, 'duration') else None,
-                "processing_time": processing_time,
-                "word_count": len(transcript.text.split())
-            }
-            
-            logger.info(f"✅ Transcription completed in {processing_time:.2f}s - {result['word_count']} words")
-            return result
+            else:
+                raise Exception("No transcription method available. Enable USE_LOCAL_WHISPER or USE_OPENAI_WHISPER")
             
         except Exception as e:
             logger.error(f"❌ Transcription failed: {str(e)}")
@@ -100,8 +159,8 @@ class AzureOpenAIService:
             # Prompt adapté selon le type de résumé
             system_prompt = self._get_summary_prompt(summary_type, language)
             
-            # Appel à GPT-4
-            response = self.client.chat.completions.create(
+            # Appel à GPT-4 via Azure
+            response = self.azure_client.chat.completions.create(
                 model=settings.AZURE_GPT4_DEPLOYMENT_NAME,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -231,7 +290,7 @@ Be precise, concise and professional."""
         """Vérifie la connexion à Azure OpenAI"""
         try:
             # Test simple avec un appel minimal
-            response = self.client.chat.completions.create(
+            response = self.azure_client.chat.completions.create(
                 model=settings.AZURE_GPT4_DEPLOYMENT_NAME,
                 messages=[{"role": "user", "content": "test"}],
                 max_tokens=5

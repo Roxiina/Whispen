@@ -11,12 +11,17 @@ import os
 class Settings(BaseSettings):
     """Configuration de l'application chargée depuis .env"""
     
-    # Azure OpenAI Configuration
+    # Azure OpenAI Configuration (for GPT summarization)
     AZURE_OPENAI_ENDPOINT: str
     AZURE_OPENAI_API_KEY: str
-    AZURE_OPENAI_API_VERSION: str = "2024-02-15-preview"
-    AZURE_WHISPER_DEPLOYMENT_NAME: str = "whisper"
-    AZURE_GPT4_DEPLOYMENT_NAME: str = "gpt-4"
+    AZURE_OPENAI_API_VERSION: str = "2024-12-01-preview"
+    AZURE_GPT4_DEPLOYMENT_NAME: str = "gpt-4o-mini"
+    
+    # OpenAI Standard API (for Whisper transcription)
+    OPENAI_API_KEY: str = "sk-dummy"
+    USE_OPENAI_WHISPER: bool = False
+    USE_LOCAL_WHISPER: bool = True
+    WHISPER_MODEL_SIZE: str = "base"  # tiny, base, small, medium, large-v3
     
     # Application Settings
     TEMP_FOLDER: str = "./temp"
