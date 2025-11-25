@@ -801,7 +801,6 @@ Les contributions sont les bienvenues ! 🎉
 ## 📞 Support
 
 - **Issues** : [GitHub Issues](https://github.com/votre-repo/whispen/issues)
-- **Email** : support@whispen.dev
 - **Documentation** : [docs/](docs/)
 
 ---
