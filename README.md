@@ -57,11 +57,14 @@
 ### Prérequis
 - **Python 3.11+** : [Télécharger Python](https://www.python.org/downloads/)
 - **Node.js 18+** : [Télécharger Node.js](https://nodejs.org/)
-- **UV** (optionnel mais recommandé) : Gestionnaire de paquets Python ultra-rapide
+
+### ⚠️ Problème d'Installation ?
+
+**Si vous avez l'erreur `Failed building wheel for pydantic-core`**, consultez [INSTALLATION.md](./INSTALLATION.md) pour les solutions détaillées.
 
 ### Lancement en 2 minutes
 
-#### Option 1 : Avec UV (Recommandé - 10x plus rapide)
+#### Option 1 : Installation Standard (RECOMMANDÉ) ✅
 
 ```powershell
 # 1. Cloner le projet
@@ -70,15 +73,26 @@ cd Whispen
 
 # 2. Configurer Azure OpenAI (obligatoire pour le résumé)
 cd backend
-cp .env.example .env
+copy .env.example .env
 # Éditer .env et ajouter vos clés Azure OpenAI
 
-# 3. Lancer tout avec UV
+# 3. Lancer l'application
 cd ..
+.\start.ps1
+```
+
+**✅ Cette méthode utilise pip standard et fonctionne sur tous les systèmes.**
+
+#### Option 2 : Avec UV (Ultra-rapide mais peut nécessiter Rust) ⚡
+
+```powershell
+# Si vous avez déjà tous les outils de build installés
 .\start-uv.ps1
 ```
 
-#### Option 2 : Sans UV (Installation classique)
+**⚠️ UV est 10-100x plus rapide mais peut nécessiter l'installation de Rust si des packages doivent être compilés.**
+
+#### Option 3 : Installation Manuelle
 
 ```powershell
 # 1. Cloner le projet
