@@ -42,14 +42,23 @@ class AzureOpenAIService:
                 self.openai_client = None
             
             # Modèle Whisper local avec faster-whisper
-            if settings.USE_LOCAL_WHISPER and FASTER_WHISPER_AVAILABLE:
+            if settings.USE_LOCAL_WHISPER:
+                if not FASTER_WHISPER_AVAILABLE:
+                    error_msg = "faster-whisper is not installed. Install it with: pip install faster-whisper==1.1.0"
+                    logger.error(f"❌ {error_msg}")
+                    raise ImportError(error_msg)
+                    
                 logger.info(f"🔄 Loading Whisper model '{settings.WHISPER_MODEL_SIZE}'...")
-                self.whisper_model = WhisperModel(
-                    settings.WHISPER_MODEL_SIZE,
-                    device="cpu",  # Utilise CPU (changez en "cuda" si GPU disponible)
-                    compute_type="int8"  # Optimisation pour CPU
-                )
-                logger.info("✅ Local Whisper model loaded successfully")
+                try:
+                    self.whisper_model = WhisperModel(
+                        settings.WHISPER_MODEL_SIZE,
+                        device="cpu",  # Utilise CPU (changez en "cuda" si GPU disponible)
+                        compute_type="int8"  # Optimisation pour CPU
+                    )
+                    logger.info("✅ Local Whisper model loaded successfully")
+                except Exception as model_error:
+                    logger.error(f"❌ Failed to load Whisper model: {model_error}")
+                    raise
             else:
                 self.whisper_model = None
                 
@@ -128,7 +137,15 @@ class AzureOpenAIService:
                 return result
             
             else:
-                raise Exception("No transcription method available. Enable USE_LOCAL_WHISPER or USE_OPENAI_WHISPER")
+                error_msg = (
+                    "No transcription method available. "
+                    f"USE_LOCAL_WHISPER={settings.USE_LOCAL_WHISPER}, "
+                    f"USE_OPENAI_WHISPER={settings.USE_OPENAI_WHISPER}, "
+                    f"whisper_model={'Loaded' if self.whisper_model else 'None'}, "
+                    f"openai_client={'Loaded' if self.openai_client else 'None'}"
+                )
+                logger.error(f"❌ {error_msg}")
+                raise Exception(error_msg)
             
         except Exception as e:
             logger.error(f"❌ Transcription failed: {str(e)}")
