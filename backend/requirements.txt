@@ -21,6 +21,7 @@ pydantic-settings==2.1.0
 # HTTP Requests
 httpx==0.26.0
 aiofiles==23.2.1
+requests==2.32.3  # Required by faster-whisper
 
 # Testing
 pytest==7.4.4

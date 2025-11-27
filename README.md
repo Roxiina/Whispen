@@ -60,7 +60,11 @@
 
 ### ⚠️ Problème d'Installation ?
 
-**Si vous avez l'erreur `Failed building wheel for pydantic-core`**, consultez [INSTALLATION.md](./INSTALLATION.md) pour les solutions détaillées.
+**❌ Erreur `Failed building wheel for pydantic-core` ?**
+
+➡️ **N'utilisez PAS `start-uv.ps1`** - Utilisez `start.ps1` à la place !
+
+📖 Consultez [ERREUR_PYDANTIC.md](./ERREUR_PYDANTIC.md) ou [INSTALLATION.md](./INSTALLATION.md) pour les solutions détaillées.
 
 ### Lancement en 2 minutes
 
